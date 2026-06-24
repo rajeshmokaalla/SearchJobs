@@ -2,7 +2,7 @@ import { Job, JobSearchResult } from '@/types/jobs';
 
 // MyCareersFuture — Singapore's official government jobs portal, free, no key needed
 export async function searchMyCareersFuture(query: string): Promise<JobSearchResult> {
-  const url = `https://api.mycareersfuture.gov.sg/v2/jobs?search=${encodeURIComponent(query)}&limit=20&page=0&sortBy=new_posting_date`;
+  const url = `https://api.mycareersfuture.gov.sg/v2/jobs?search=${encodeURIComponent(query)}&limit=20&offset=0`;
   try {
     const res = await fetch(url, {
       headers: {
@@ -19,16 +19,15 @@ export async function searchMyCareersFuture(query: string): Promise<JobSearchRes
     }
     const data = await res.json();
 
-    // Expose full shape if something unexpected
     const topKeys = Object.keys(data).join(', ');
     const rawTotal = data.total ?? data.count ?? data.totalCount ?? '?';
 
     if (!data.results) {
-      return { jobs: [], total: 0, source: 'MyCareersFuture', error: `MCF keys: [${topKeys}] total=${rawTotal} sample=${JSON.stringify(data).slice(0, 300)}` };
+      return { jobs: [], total: 0, source: 'MyCareersFuture', error: `MCF keys: [${topKeys}] sample=${JSON.stringify(data).slice(0, 300)}` };
     }
 
     if (data.results.length === 0) {
-      return { jobs: [], total: 0, source: 'MyCareersFuture', error: `MCF returned 0 results (total=${rawTotal}, keys=[${topKeys}])` };
+      return { jobs: [], total: 0, source: 'MyCareersFuture', error: `MCF returned 0 results (total=${rawTotal}, countWithoutFilters=${data.countWithoutFilters ?? '?'}, keys=[${topKeys}])` };
     }
 
     const jobs: Job[] = (data.results as MCFJob[]).map((item) => {
