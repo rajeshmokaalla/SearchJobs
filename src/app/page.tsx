@@ -2,16 +2,14 @@
 
 import { useState } from 'react';
 import ResumeUpload from '@/components/ResumeUpload';
-import CountrySelector from '@/components/CountrySelector';
 import JobCard from '@/components/JobCard';
 import SkillBadge from '@/components/SkillBadge';
-import { Job, ResumeData, COUNTRIES } from '@/types/jobs';
+import { Job, ResumeData } from '@/types/jobs';
 
 type SourceSummary = { source: string; count: number; error?: string };
 
 export default function Home() {
   const [resumeData, setResumeData] = useState<ResumeData | null>(null);
-  const [country, setCountry] = useState('us');
   const [searchQuery, setSearchQuery] = useState('');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [sources, setSources] = useState<SourceSummary[]>([]);
@@ -30,7 +28,6 @@ export default function Home() {
   async function handleSearch() {
     const query = searchQuery.trim();
     if (!query) { setError('Please upload a resume or enter a search query.'); return; }
-    if (!country) { setError('Please select a country.'); return; }
     setError('');
     setLoading(true);
     setSearched(false);
@@ -38,7 +35,7 @@ export default function Home() {
       const res = await fetch('/api/search-jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, country }),
+        body: JSON.stringify({ query }),
       });
       const data = await res.json();
       if (data.error && !data.jobs?.length) {
@@ -67,7 +64,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
               <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -77,20 +74,21 @@ export default function Home() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-slate-900 leading-none">SearchJobs</h1>
-              <p className="text-xs text-slate-500">Resume-powered job search</p>
+              <p className="text-xs text-slate-500">🇸🇬 Singapore · MyCareersFuture</p>
             </div>
           </div>
           {searched && total > 0 && (
             <div className="text-sm text-slate-600 font-medium">
-              {total} jobs in <span className="text-blue-600">{COUNTRIES[country]?.flag} {COUNTRIES[country]?.name}</span>
+              {total} jobs found
             </div>
           )}
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
-          <h2 className="text-xl font-bold text-slate-900 mb-5">Find jobs matching your resume</h2>
+          <h2 className="text-xl font-bold text-slate-900 mb-1">Find Singapore jobs matching your resume</h2>
+          <p className="text-sm text-slate-500 mb-5">Powered by MyCareersFuture — Singapore&apos;s official government jobs portal</p>
           <div className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Upload Resume</label>
@@ -106,19 +104,16 @@ export default function Home() {
                 Parsing resume...
               </div>
             )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Job Title / Keywords</label>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  placeholder="e.g. Software Engineer, Data Scientist..."
-                  className="w-full px-4 py-3 border border-slate-300 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <CountrySelector value={country} onChange={setCountry} />
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Job Title / Keywords</label>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="e.g. Senior QE Lead, Software Engineer..."
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
             </div>
             {error && (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
@@ -152,25 +147,6 @@ export default function Home() {
 
         {searched && (
           <div>
-            {sources.length > 0 && (
-              <div className="flex flex-wrap gap-3 mb-4">
-                {sources.map((s) => (
-                  <div key={s.source}
-                    title={s.error && s.count === 0 ? s.error : undefined}
-                    className={`flex items-center gap-1.5 bg-white rounded-lg px-3 py-1.5 text-sm border ${s.error && s.count === 0 ? 'border-red-200' : 'border-slate-200'}`}>
-                    <span className="font-medium text-slate-700">{s.source}</span>
-                    <span className="text-slate-400">·</span>
-                    {s.error && s.count === 0 ? (
-                      <span className="text-red-500 font-medium" title={s.error}>
-                        error ⓘ
-                      </span>
-                    ) : (
-                      <span className="text-blue-600 font-semibold">{s.count} jobs</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
             {sources.some(s => s.error && s.count === 0) && (
               <div className="mb-4 space-y-1">
                 {sources.filter(s => s.error && s.count === 0).map(s => (
@@ -198,7 +174,7 @@ export default function Home() {
             {filteredJobs.length === 0 ? (
               <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
                 <p className="text-slate-600 font-medium">No jobs found</p>
-                <p className="text-sm text-slate-400 mt-1">Try different keywords or another country</p>
+                <p className="text-sm text-slate-400 mt-1">Try different keywords</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -211,9 +187,9 @@ export default function Home() {
         {!searched && !loading && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
             {[
-              { title: 'Upload Resume', desc: 'PDF, DOCX, or TXT. Skills and job title extracted automatically.' },
-              { title: 'Choose Country', desc: 'Select your target country to get locally relevant listings.' },
-              { title: 'Get Matched Jobs', desc: 'We search Adzuna, JSearch, The Muse, Arbeitnow simultaneously.' },
+              { title: 'Upload Resume', desc: 'PDF, DOCX, or TXT. Job title and skills extracted automatically.' },
+              { title: 'Search Singapore Jobs', desc: 'Searches MyCareersFuture — the official Singapore government portal.' },
+              { title: 'Apply Directly', desc: 'Click Apply on any card to go straight to the job posting.' },
             ].map((step, i) => (
               <div key={step.title} className="bg-white rounded-xl border border-slate-200 p-5 text-center">
                 <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-3 font-bold text-lg">{i + 1}</div>
@@ -226,7 +202,7 @@ export default function Home() {
       </main>
 
       <footer className="text-center py-6 text-xs text-slate-400 mt-8">
-        Jobs sourced from Adzuna · JSearch (LinkedIn, Indeed, Glassdoor, ZipRecruiter) · The Muse · Arbeitnow
+        Jobs sourced from MyCareersFuture (mycareersfuture.gov.sg) · Singapore only
       </footer>
     </div>
   );
