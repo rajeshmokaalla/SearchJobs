@@ -12,13 +12,14 @@ export async function POST(req: NextRequest) {
     let text = '';
 
     if (fileName.endsWith('.pdf')) {
-      // pdfjs-dist (used by pdf-parse) references browser DOM APIs in Node.js
+      // pdfjs-dist references browser-only DOMMatrix; polyfill before import
       if (typeof (globalThis as Record<string, unknown>).DOMMatrix === 'undefined') {
         (globalThis as Record<string, unknown>).DOMMatrix = class DOMMatrix {};
       }
+      // Import the inner module directly to avoid the wrapper's export ambiguity
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pdfParse = (await import('pdf-parse')) as any;
-      const parseFn = pdfParse.default || pdfParse;
+      const pdfParseLib = (await import('pdf-parse/lib/pdf-parse.js')) as any;
+      const parseFn = pdfParseLib.default || pdfParseLib;
       const result = await parseFn(buffer);
       text = result.text;
     } else if (fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
