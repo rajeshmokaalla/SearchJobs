@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
       }
       // Import the inner module directly to avoid the wrapper's export ambiguity
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // @ts-ignore – no type declarations for the internal path
       const pdfParseLib = (await import('pdf-parse/lib/pdf-parse.js')) as any;
       const parseFn = pdfParseLib.default || pdfParseLib;
       const result = await parseFn(buffer);
