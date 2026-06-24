@@ -213,7 +213,7 @@ export default function Home() {
             {[
               { title: 'Upload Resume', desc: 'PDF, DOCX, or TXT. Skills and job title extracted automatically.' },
               { title: 'Choose Country', desc: 'Select your target country to get locally relevant listings.' },
-              { title: 'Get Matched Jobs', desc: 'We search Adzuna, JSearch, CareerJet, Remotive simultaneously.' },
+              { title: 'Get Matched Jobs', desc: 'We search Adzuna, JSearch, The Muse, Arbeitnow simultaneously.' },
             ].map((step, i) => (
               <div key={step.title} className="bg-white rounded-xl border border-slate-200 p-5 text-center">
                 <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-3 font-bold text-lg">{i + 1}</div>
@@ -226,7 +226,7 @@ export default function Home() {
       </main>
 
       <footer className="text-center py-6 text-xs text-slate-400 mt-8">
-        Jobs sourced from Adzuna · JSearch (LinkedIn, Indeed, Glassdoor, ZipRecruiter) · CareerJet (JobStreet, eFinancialCareers &amp; more) · Remotive
+        Jobs sourced from Adzuna · JSearch (LinkedIn, Indeed, Glassdoor, ZipRecruiter) · The Muse · Arbeitnow
       </footer>
     </div>
   );
