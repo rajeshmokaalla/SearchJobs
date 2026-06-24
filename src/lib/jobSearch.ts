@@ -19,8 +19,16 @@ export async function searchMyCareersFuture(query: string): Promise<JobSearchRes
     }
     const data = await res.json();
 
+    // Expose full shape if something unexpected
+    const topKeys = Object.keys(data).join(', ');
+    const rawTotal = data.total ?? data.count ?? data.totalCount ?? '?';
+
     if (!data.results) {
-      return { jobs: [], total: 0, source: 'MyCareersFuture', error: `Unexpected MCF response: ${JSON.stringify(data).slice(0, 300)}` };
+      return { jobs: [], total: 0, source: 'MyCareersFuture', error: `MCF keys: [${topKeys}] total=${rawTotal} sample=${JSON.stringify(data).slice(0, 300)}` };
+    }
+
+    if (data.results.length === 0) {
+      return { jobs: [], total: 0, source: 'MyCareersFuture', error: `MCF returned 0 results (total=${rawTotal}, keys=[${topKeys}])` };
     }
 
     const jobs: Job[] = (data.results as MCFJob[]).map((item) => {
