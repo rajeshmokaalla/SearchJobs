@@ -2,10 +2,10 @@ import { Job, JobSearchResult } from '@/types/jobs';
 
 // MyCareersFuture — Singapore's official government jobs portal, free, no key needed
 export async function searchMyCareersFuture(query: string): Promise<JobSearchResult> {
-  const url = `https://api.mycareersfuture.gov.sg/v2/search?search=${encodeURIComponent(query)}&limit=20&page=0&sortBy=new_posting_date`;
+  const url = `https://api.mycareersfuture.gov.sg/v2/jobs?search=${encodeURIComponent(query)}&limit=20&page=0&sortBy=new_posting_date`;
   try {
     const res = await fetch(url, {
-      headers: { 'Accept': 'application/json' },
+      headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' },
       next: { revalidate: 0 },
     });
     if (!res.ok) {
@@ -28,15 +28,19 @@ export async function searchMyCareersFuture(query: string): Promise<JobSearchRes
         item.address?.postalCode ? `Singapore ${item.address.postalCode}` : 'Singapore',
       ].filter(Boolean).join(', ') || 'Singapore';
 
+      const title = item.title || '';
+      const company = item.company?.name || '';
+      const linkedInUrl = `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(title + (company ? ' ' + company : ''))}&location=Singapore`;
+
       return {
         id: item.uuid || item.metadata?.jobPostId || String(Math.random()),
-        title: item.title || '',
-        company: item.company?.name || 'Unknown Company',
+        title,
+        company: company || 'Unknown Company',
         location,
         description: item.description?.replace(/<[^>]*>/g, '').slice(0, 500) || '',
         salary,
         postedDate: item.metadata?.newPostingDate,
-        url: `https://www.mycareersfuture.gov.sg/job/${item.uuid}`,
+        url: linkedInUrl,
         source: 'MyCareersFuture',
         jobType: item.employmentTypes?.[0] || '',
       };
