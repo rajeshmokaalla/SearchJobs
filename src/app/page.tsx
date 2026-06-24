@@ -155,12 +155,27 @@ export default function Home() {
             {sources.length > 0 && (
               <div className="flex flex-wrap gap-3 mb-4">
                 {sources.map((s) => (
-                  <div key={s.source} className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm">
+                  <div key={s.source}
+                    title={s.error && s.count === 0 ? s.error : undefined}
+                    className={`flex items-center gap-1.5 bg-white rounded-lg px-3 py-1.5 text-sm border ${s.error && s.count === 0 ? 'border-red-200' : 'border-slate-200'}`}>
                     <span className="font-medium text-slate-700">{s.source}</span>
                     <span className="text-slate-400">·</span>
-                    <span className={s.error && s.count === 0 ? 'text-red-500' : 'text-blue-600 font-semibold'}>
-                      {s.error && s.count === 0 ? 'error' : `${s.count} jobs`}
-                    </span>
+                    {s.error && s.count === 0 ? (
+                      <span className="text-red-500 font-medium" title={s.error}>
+                        error ⓘ
+                      </span>
+                    ) : (
+                      <span className="text-blue-600 font-semibold">{s.count} jobs</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {sources.some(s => s.error && s.count === 0) && (
+              <div className="mb-4 space-y-1">
+                {sources.filter(s => s.error && s.count === 0).map(s => (
+                  <div key={s.source} className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    <span className="font-semibold">{s.source}:</span> {s.error}
                   </div>
                 ))}
               </div>
