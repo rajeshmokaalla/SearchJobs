@@ -1,4 +1,4 @@
-import { Job, JobSearchResult } from '@/types/jobs';
+import { Job, JobSearchResult, COUNTRIES } from '@/types/jobs';
 
 export async function searchAdzuna(
   query: string, country: string, appId: string, appKey: string, page = 1, resultsPerPage = 20
@@ -47,7 +47,9 @@ function formatSalary(min?: number, max?: number, predicted?: number): string | 
 export async function searchJSearch(
   query: string, country: string, apiKey: string, page = 1
 ): Promise<JobSearchResult> {
-  const url = `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query + ' ' + country)}&page=${page}&num_pages=1&date_posted=all`;
+  const countryName = COUNTRIES[country]?.name || country;
+  // Include country name in query and pass country code param for stricter filtering
+  const url = `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query + ' in ' + countryName)}&page=${page}&num_pages=1&date_posted=all&country=${country.toUpperCase()}`;
   try {
     const res = await fetch(url, {
       headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'jsearch.p.rapidapi.com' },
@@ -94,13 +96,15 @@ function formatJSearchSalary(job: JSearchJob): string | undefined {
   if (max) return `Up to ${sym}${Math.round(max / 1000)}k`;
 }
 
-export async function searchRemotive(query: string): Promise<JobSearchResult> {
-  const url = `https://remotive.com/api/remote-jobs?search=${encodeURIComponent(query)}&limit=20`;
+export async function searchRemotive(query: string, country: string): Promise<JobSearchResult> {
+  const url = `https://remotive.com/api/remote-jobs?search=${encodeURIComponent(query)}&limit=40`;
   try {
     const res = await fetch(url, { next: { revalidate: 0 } });
     if (!res.ok) return { jobs: [], total: 0, source: 'Remotive', error: `Remotive error ${res.status}` };
     const data = await res.json();
-    const jobs: Job[] = (data.jobs || []).slice(0, 20).map((item: RemotiveJob) => ({
+    const countryName = (COUNTRIES[country]?.name || '').toLowerCase();
+
+    const allJobs: Job[] = (data.jobs || []).map((item: RemotiveJob) => ({
       id: String(item.id), title: item.title, company: item.company_name,
       location: item.candidate_required_location || 'Remote',
       description: item.description?.replace(/<[^>]*>/g, '').slice(0, 500) || '',
@@ -108,7 +112,15 @@ export async function searchRemotive(query: string): Promise<JobSearchResult> {
       postedDate: item.publication_date, url: item.url,
       source: 'Remotive', jobType: item.job_type || 'Remote',
     }));
-    return { jobs, total: data.job_count || jobs.length, source: 'Remotive' };
+
+    const loc = (j: Job) => j.location.toLowerCase();
+    const isCountryMatch = (j: Job) => countryName && loc(j).includes(countryName);
+    const isWorldwide = (j: Job) => !loc(j) || ['worldwide', 'anywhere', 'global', 'remote'].some(w => loc(j).includes(w));
+
+    const preferred = allJobs.filter(j => isCountryMatch(j) || isWorldwide(j));
+    const jobs = (preferred.length >= 5 ? preferred : allJobs).slice(0, 20);
+
+    return { jobs, total: jobs.length, source: 'Remotive' };
   } catch (err) {
     return { jobs: [], total: 0, source: 'Remotive', error: String(err) };
   }
