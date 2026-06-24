@@ -9,7 +9,9 @@ export async function POST(req: NextRequest) {
     const result = await searchMyCareersFuture(query);
     const sourcesSummary = [{ source: result.source, count: result.jobs.length, error: result.error }];
 
-    return NextResponse.json({ jobs: result.jobs, total: result.total, sources: sourcesSummary });
+    // Surface the error at top level too so the UI shows it clearly
+    const topError = result.jobs.length === 0 && result.error ? result.error : undefined;
+    return NextResponse.json({ jobs: result.jobs, total: result.total, sources: sourcesSummary, error: topError });
   } catch (err) {
     return NextResponse.json({ error: 'Search failed: ' + String(err) }, { status: 500 });
   }
