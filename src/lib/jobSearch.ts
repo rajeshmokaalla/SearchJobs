@@ -45,11 +45,11 @@ function formatSalary(min?: number, max?: number, predicted?: number): string | 
 }
 
 // JSearch via RapidAPI — aggregates LinkedIn, Indeed, Glassdoor, ZipRecruiter
+// Requires an active JSearch subscription at rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch
 export async function searchJSearch(
   query: string, country: string, apiKey: string, page = 1
 ): Promise<JobSearchResult> {
   const countryName = COUNTRIES[country]?.name || country;
-  // Use "query in CountryName" — do NOT add unsupported params like &country= which cause 404
   const url = `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query + ' in ' + countryName)}&page=${page}&num_pages=1&date_posted=all`;
   try {
     const res = await fetch(url, {
@@ -97,84 +97,77 @@ function formatJSearchSalary(job: JSearchJob): string | undefined {
   if (max) return `Up to ${sym}${Math.round(max / 1000)}k`;
 }
 
-// CareerJet — free, no key needed, aggregates JobStreet, eFinancialCareers, LinkedIn, Indeed & more
-export async function searchCareerjet(query: string, country: string): Promise<JobSearchResult> {
-  const countryName = COUNTRIES[country]?.name || country;
-  const locale = CAREERJET_LOCALE[country] || 'en_GB';
-  const url = `https://public.api.careerjet.net/search?keywords=${encodeURIComponent(query)}&location=${encodeURIComponent(countryName)}&affid=null&user_ip=1.1.1.1&url=https%3A%2F%2Fexample.com&locale_code=${locale}&pagesize=20&page=1`;
+// The Muse — free, no key needed, tech & creative companies worldwide
+export async function searchTheMuse(query: string, country: string): Promise<JobSearchResult> {
+  const countryName = (COUNTRIES[country]?.name || country).toLowerCase();
+  const url = `https://www.themuse.com/api/public/jobs?descending=true&page=1&category=${encodeURIComponent(query)}`;
   try {
     const res = await fetch(url, { next: { revalidate: 0 } });
-    if (!res.ok) {
-      const text = await res.text();
-      return { jobs: [], total: 0, source: 'CareerJet', error: `CareerJet API error ${res.status}: ${text.slice(0, 200)}` };
-    }
+    if (!res.ok) return { jobs: [], total: 0, source: 'The Muse', error: `The Muse error ${res.status}` };
     const data = await res.json();
-    if (data.type === 'JOBS') {
-      const jobs: Job[] = (data.jobs || []).map((item: CareerjetJob) => ({
-        id: String(item.id || item.url),
-        title: item.title,
-        company: item.company || 'Unknown Company',
-        location: item.locations || '',
-        description: item.description || '',
-        salary: item.salary || undefined,
-        postedDate: undefined,
-        url: item.url,
-        source: 'CareerJet',
-        jobType: item.job_type || '',
-      }));
-      return { jobs, total: data.total_results || jobs.length, source: 'CareerJet' };
-    }
-    return { jobs: [], total: 0, source: 'CareerJet', error: 'No results' };
+
+    const allJobs: Job[] = (data.results || []).map((item: MuseJob) => {
+      const loc = item.locations?.map((l) => l.name).join(', ') || '';
+      return {
+        id: String(item.id),
+        title: item.name,
+        company: item.company?.name || 'Unknown Company',
+        location: loc,
+        description: item.contents?.replace(/<[^>]*>/g, '').slice(0, 500) || '',
+        salary: undefined,
+        postedDate: item.publication_date,
+        url: item.refs?.landing_page || '',
+        source: 'The Muse',
+        jobType: item.type || '',
+      };
+    });
+
+    const preferred = allJobs.filter(j => j.location.toLowerCase().includes(countryName));
+    const jobs = (preferred.length >= 3 ? preferred : allJobs).slice(0, 20);
+    return { jobs, total: jobs.length, source: 'The Muse' };
   } catch (err) {
-    return { jobs: [], total: 0, source: 'CareerJet', error: String(err) };
+    return { jobs: [], total: 0, source: 'The Muse', error: String(err) };
   }
 }
 
-const CAREERJET_LOCALE: Record<string, string> = {
-  us: 'en_US', gb: 'en_GB', ca: 'en_CA', au: 'en_AU',
-  de: 'de_DE', fr: 'fr_FR', nl: 'nl_NL', sg: 'en_SG',
-  in: 'en_IN', nz: 'en_NZ', za: 'en_ZA', br: 'pt_BR',
-  mx: 'es_MX', at: 'de_AT', be: 'fr_BE',
-};
-
-interface CareerjetJob {
-  id?: string; title: string; company?: string;
-  locations?: string; description?: string;
-  salary?: string; url: string; job_type?: string;
+interface MuseJob {
+  id: number; name: string;
+  company?: { name: string };
+  locations?: { name: string }[];
+  contents?: string;
+  publication_date?: string;
+  refs?: { landing_page: string };
+  type?: string;
 }
 
-// Remotive — free, no key, remote-only jobs
-export async function searchRemotive(query: string, country: string): Promise<JobSearchResult> {
-  const url = `https://remotive.com/api/remote-jobs?search=${encodeURIComponent(query)}&limit=40`;
+// Arbeitnow — free, no key, remote + European jobs
+export async function searchArbeitnow(query: string): Promise<JobSearchResult> {
+  const url = `https://www.arbeitnow.com/api/job-board-api?search=${encodeURIComponent(query)}`;
   try {
     const res = await fetch(url, { next: { revalidate: 0 } });
-    if (!res.ok) return { jobs: [], total: 0, source: 'Remotive', error: `Remotive error ${res.status}` };
+    if (!res.ok) return { jobs: [], total: 0, source: 'Arbeitnow', error: `Arbeitnow error ${res.status}` };
     const data = await res.json();
-    const countryName = (COUNTRIES[country]?.name || '').toLowerCase();
-
-    const allJobs: Job[] = (data.jobs || []).map((item: RemotiveJob) => ({
-      id: String(item.id), title: item.title, company: item.company_name,
-      location: item.candidate_required_location || 'Remote',
+    const jobs: Job[] = (data.data || []).slice(0, 20).map((item: ArbeitnowJob) => ({
+      id: item.slug,
+      title: item.title,
+      company: item.company_name,
+      location: item.location || 'Remote',
       description: item.description?.replace(/<[^>]*>/g, '').slice(0, 500) || '',
-      salary: item.salary || undefined,
-      postedDate: item.publication_date, url: item.url,
-      source: 'Remotive', jobType: item.job_type || 'Remote',
+      salary: undefined,
+      postedDate: item.created_at ? new Date(item.created_at * 1000).toISOString() : undefined,
+      url: item.url,
+      source: 'Arbeitnow',
+      jobType: item.remote ? 'Remote' : item.job_types?.[0] || '',
     }));
-
-    const loc = (j: Job) => j.location.toLowerCase();
-    const isCountryMatch = (j: Job) => countryName && loc(j).includes(countryName);
-    const isWorldwide = (j: Job) => !loc(j) || ['worldwide', 'anywhere', 'global', 'remote'].some(w => loc(j).includes(w));
-    const preferred = allJobs.filter(j => isCountryMatch(j) || isWorldwide(j));
-    const jobs = (preferred.length >= 5 ? preferred : allJobs).slice(0, 20);
-
-    return { jobs, total: jobs.length, source: 'Remotive' };
+    return { jobs, total: jobs.length, source: 'Arbeitnow' };
   } catch (err) {
-    return { jobs: [], total: 0, source: 'Remotive', error: String(err) };
+    return { jobs: [], total: 0, source: 'Arbeitnow', error: String(err) };
   }
 }
 
-interface RemotiveJob {
-  id: number; title: string; company_name: string;
-  candidate_required_location?: string; description?: string;
-  salary?: string; publication_date?: string; url: string; job_type?: string;
+interface ArbeitnowJob {
+  slug: string; title: string; company_name: string;
+  location?: string; description?: string;
+  created_at?: number; url: string;
+  remote?: boolean; job_types?: string[];
 }

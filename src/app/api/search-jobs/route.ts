@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { searchAdzuna, searchJSearch, searchRemotive, searchCareerjet } from '@/lib/jobSearch';
+import { searchAdzuna, searchJSearch, searchTheMuse, searchArbeitnow } from '@/lib/jobSearch';
 import { Job } from '@/types/jobs';
 
 export async function POST(req: NextRequest) {
@@ -14,8 +14,8 @@ export async function POST(req: NextRequest) {
     const promises: Promise<{ jobs: Job[]; total: number; source: string; error?: string }>[] = [];
     if (adzunaAppId && adzunaAppKey) promises.push(searchAdzuna(query, country, adzunaAppId, adzunaAppKey));
     if (jsearchKey) promises.push(searchJSearch(query, country, jsearchKey));
-    promises.push(searchCareerjet(query, country));
-    promises.push(searchRemotive(query, country));
+    promises.push(searchTheMuse(query, country));
+    promises.push(searchArbeitnow(query));
 
     const results = await Promise.allSettled(promises);
     let allJobs: Job[] = [];
