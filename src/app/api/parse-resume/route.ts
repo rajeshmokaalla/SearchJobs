@@ -12,6 +12,10 @@ export async function POST(req: NextRequest) {
     let text = '';
 
     if (fileName.endsWith('.pdf')) {
+      // pdfjs-dist (used by pdf-parse) references browser DOM APIs in Node.js
+      if (typeof (globalThis as Record<string, unknown>).DOMMatrix === 'undefined') {
+        (globalThis as Record<string, unknown>).DOMMatrix = class DOMMatrix {};
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pdfParse = (await import('pdf-parse')) as any;
       const parseFn = pdfParse.default || pdfParse;
