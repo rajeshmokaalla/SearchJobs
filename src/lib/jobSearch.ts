@@ -44,12 +44,13 @@ function formatSalary(min?: number, max?: number, predicted?: number): string | 
   if (max) return `Up to $${Math.round(max / 1000)}k${tag}`;
 }
 
+// JSearch via RapidAPI — aggregates LinkedIn, Indeed, Glassdoor, ZipRecruiter
 export async function searchJSearch(
   query: string, country: string, apiKey: string, page = 1
 ): Promise<JobSearchResult> {
   const countryName = COUNTRIES[country]?.name || country;
-  // Include country name in query and pass country code param for stricter filtering
-  const url = `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query + ' in ' + countryName)}&page=${page}&num_pages=1&date_posted=all&country=${country.toUpperCase()}`;
+  // Use "query in CountryName" — do NOT add unsupported params like &country= which cause 404
+  const url = `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query + ' in ' + countryName)}&page=${page}&num_pages=1&date_posted=all`;
   try {
     const res = await fetch(url, {
       headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'jsearch.p.rapidapi.com' },
@@ -96,6 +97,53 @@ function formatJSearchSalary(job: JSearchJob): string | undefined {
   if (max) return `Up to ${sym}${Math.round(max / 1000)}k`;
 }
 
+// CareerJet — free, no key needed, aggregates JobStreet, eFinancialCareers, LinkedIn, Indeed & more
+export async function searchCareerjet(query: string, country: string): Promise<JobSearchResult> {
+  const countryName = COUNTRIES[country]?.name || country;
+  const locale = CAREERJET_LOCALE[country] || 'en_GB';
+  const url = `https://public.api.careerjet.net/search?keywords=${encodeURIComponent(query)}&location=${encodeURIComponent(countryName)}&affid=null&user_ip=1.1.1.1&url=https%3A%2F%2Fexample.com&locale_code=${locale}&pagesize=20&page=1`;
+  try {
+    const res = await fetch(url, { next: { revalidate: 0 } });
+    if (!res.ok) {
+      const text = await res.text();
+      return { jobs: [], total: 0, source: 'CareerJet', error: `CareerJet API error ${res.status}: ${text.slice(0, 200)}` };
+    }
+    const data = await res.json();
+    if (data.type === 'JOBS') {
+      const jobs: Job[] = (data.jobs || []).map((item: CareerjetJob) => ({
+        id: String(item.id || item.url),
+        title: item.title,
+        company: item.company || 'Unknown Company',
+        location: item.locations || '',
+        description: item.description || '',
+        salary: item.salary || undefined,
+        postedDate: undefined,
+        url: item.url,
+        source: 'CareerJet',
+        jobType: item.job_type || '',
+      }));
+      return { jobs, total: data.total_results || jobs.length, source: 'CareerJet' };
+    }
+    return { jobs: [], total: 0, source: 'CareerJet', error: 'No results' };
+  } catch (err) {
+    return { jobs: [], total: 0, source: 'CareerJet', error: String(err) };
+  }
+}
+
+const CAREERJET_LOCALE: Record<string, string> = {
+  us: 'en_US', gb: 'en_GB', ca: 'en_CA', au: 'en_AU',
+  de: 'de_DE', fr: 'fr_FR', nl: 'nl_NL', sg: 'en_SG',
+  in: 'en_IN', nz: 'en_NZ', za: 'en_ZA', br: 'pt_BR',
+  mx: 'es_MX', at: 'de_AT', be: 'fr_BE',
+};
+
+interface CareerjetJob {
+  id?: string; title: string; company?: string;
+  locations?: string; description?: string;
+  salary?: string; url: string; job_type?: string;
+}
+
+// Remotive — free, no key, remote-only jobs
 export async function searchRemotive(query: string, country: string): Promise<JobSearchResult> {
   const url = `https://remotive.com/api/remote-jobs?search=${encodeURIComponent(query)}&limit=40`;
   try {
@@ -116,7 +164,6 @@ export async function searchRemotive(query: string, country: string): Promise<Jo
     const loc = (j: Job) => j.location.toLowerCase();
     const isCountryMatch = (j: Job) => countryName && loc(j).includes(countryName);
     const isWorldwide = (j: Job) => !loc(j) || ['worldwide', 'anywhere', 'global', 'remote'].some(w => loc(j).includes(w));
-
     const preferred = allJobs.filter(j => isCountryMatch(j) || isWorldwide(j));
     const jobs = (preferred.length >= 5 ? preferred : allJobs).slice(0, 20);
 
